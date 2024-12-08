@@ -1,0 +1,82 @@
+project:
+  name: "HawkingRag"
+
+database:
+  user: "user"
+  password: "password"
+  name: "hawkingragdb"
+  host: "localhost"
+  port: 5432
+
+logging:
+  level: "INFO"
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+
+
+embedding_model:
+  batch_size: 16
+  model_name: "deepvk/USER-base"
+  model_type: ""
+  dimension: 768
+  prefix_query: "query: {}"
+  prefix_document: "passage: {}"
+
+elastic_params:
+  host: "elasticsearch"
+  port: 9200
+  index_name: "chunks"
+
+retrieval:
+  vector_search_enabled: true
+  similarity_threshold: 0.7
+  top_k_vector: 3
+  fulltext_search_enabled: true
+  top_k_fulltext: 3
+  top_k : 5
+
+data_sources:
+  embeddings: "./data/embeddings"
+  text_file: "./data/brief_history_of_time.txt"
+  text_separator: "\n"
+
+brief_history:
+  chapter_names:
+    - Благодарности
+    - Предисловие
+    - 1. Наше представление о Вселенной
+    - 2. Пространство и время
+    - 3. Расширяющаяся Вселенная
+    - 4. Принцип неопределенности
+    - 5. Элементарные частицы и силы в природе
+    - 6. Черные дыры
+    - 7. Черные дыры не так уж черны
+    - 8. Рождение и гибель Вселенной
+    - 9. Стрела времени
+    - 10. Объединение физики
+    - 11. Заключение
+    - Великие физики
+    - Словарь терминов
+    - Послесловие
+  first_paragraph_num: 23
+
+data_processing:
+  chunker:
+    py_class: interface.chunker.RecursiveCharacterTextSplitterChunker
+    kwargs:
+      chunk_size: 2048
+      chunk_overlap: 256
+      separators:
+        - '\n#{1,6} '
+        - '```\n'
+        - '\n\\*\\*\\*+\n'
+        - '\n---+\n'
+        - '\n___+\n'
+        - '\n\n'
+        - '\n'
+        - ' '
+        - ''
+        - ','
+        - '|'
