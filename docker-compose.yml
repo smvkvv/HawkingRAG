@@ -10,6 +10,9 @@ services:
       POSTGRES_DB: ${DB_NAME:-hawkingragdb}
     ports:
       - "5434:5432"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./data:/docker-entrypoint-initdb.d
@@ -19,13 +22,16 @@ services:
                docker-entrypoint.sh postgres"
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.3
+    image: elasticsearch:8.7.1
     environment:
       - discovery.type=single-node
       - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
     ports:
       - "9200:9200"
       - "9300:9300"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     volumes:
       - es_data:/usr/share/elasticsearch/data
 
@@ -44,6 +50,9 @@ services:
       uvicorn interface.main:app --host 0.0.0.0 --port 8000 --reload"
     ports:
       - "8000:8000"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     depends_on:
       - db
     volumes:
@@ -55,6 +64,9 @@ services:
       streamlit run streamlit/app.py --server.port=8501 --server.address=0.0.0.0
     ports:
       - "8501:8501"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     depends_on:
       - interface
 
