@@ -18,6 +18,7 @@ class Context(BaseModel):
     type: str
 
 
-class RetrievalResponse(BaseModel):
+class QuestionResponse(BaseModel):
+    response: str
     contexts: list[Context]
 

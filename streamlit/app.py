@@ -18,7 +18,7 @@ def send_message(user_input: str):
     response = requests.post(api_url, json=payload)
 
     if response.status_code == 200:
-        return response.json()["contexts"]
+        return response.json()["response"]
     else:
         return "Error: Could not reach the backend."
 

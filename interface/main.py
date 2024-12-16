@@ -25,6 +25,7 @@ models.Base.metadata.create_all(bind=engine)
 
 # Initialize models and LLM client
 local_embedder = utils.initialize_embedding_model(config)
+llm_client = utils.initialize_llm_client(config)
 
 es_client = Elasticsearch(([{"host": config["elastic_params"]["host"], "port": config["elastic_params"]["port"]}]))
 
@@ -51,29 +52,32 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=config["project"]["name"], lifespan=lifespan)
 
 
-@app.post("/ask/", response_model=schemas.RetrievalResponse)
+@app.post("/ask/", response_model=schemas.QuestionResponse)
 def ask_question(question: schemas.QuestionCreate):
     logger.info(f"Received question: {question.question}")
 
     try:
-        response_content = utils.process_request(config, local_embedder, question.question, es_client)
-        logger.info(f"Retrieval Response: {response_content}")
+        response_content = utils.process_request(config, local_embedder, llm_client, question.question, es_client)
+        logger.info(f"LLM Response: {response_content}")
 
-        if isinstance(response_content, dict) and 'context' in response_content:
-            return schemas.RetrievalResponse(
-                contexts=response_content['context']
+        if isinstance(response_content, dict) and 'response' in response_content:
+            return schemas.QuestionResponse(
+                response=response_content['response'],
+                context=response_content['context']
             )
         else:
             logger.error(f"Unexpected response format: {response_content}")
-            return schemas.RetrievalResponse(
-                contexts=unexpected_format_context,
+            return schemas.QuestionResponse(
+                response=unexpected_format_response,
+                context=unexpected_format_context,
                 code=400
             )
 
     except Exception as e:
         logger.exception(f"An error occurred while processing the question: {str(e)}")
-        return schemas.RetrievalResponse(
-            contexts=server_error_context,
+        return schemas.QuestionResponse(
+            response=server_error_response,
+            context=server_error_context,
             code=500
         )
 
