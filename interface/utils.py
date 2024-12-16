@@ -223,31 +223,31 @@ def build_prompt(contexts: List[str], query: str) -> str:
     return prompt
 
 
-def answer_query(llm_client, query, config):
+def rewrite_query(llm_client, query, config):
     """
     Answers user's query using LLM_rewriter
     """
     try:
         response = llm_client.chat.completions.create(
-            model=config["llm_respond"]["model"],
+            model=config["llm_rewriter"]["model"],
             messages=[
-                {"role": "system", "content": config["llm_respond"]["system_prompt"]},
-                {"role": config["llm_respond"]["role"], "content": f"Вопрос: {query}"},
+                {"role": "system", "content": config["llm_rewriter"]["system_prompt"]},
+                {"role": config["llm_rewriter"]["role"], "content": f"Вопрос: {query}"},
             ],
-            temperature=config["llm_respond"]["temperature"],
-            top_p=config["llm_respond"]["top_p"],
-            max_tokens=config["llm_respond"]["max_tokens"],
+            temperature=config["llm_rewriter"]["temperature"],
+            top_p=config["llm_rewriter"]["top_p"],
+            max_tokens=config["llm_rewriter"]["max_tokens"],
             stream=True
         )
 
-        answered_query = ""
+        rewrited_query = ""
         for chunk in response:
             if chunk.choices[0].delta.content is not None:
-                answered_query += chunk.choices[0].delta.content
+                rewrited_query += chunk.choices[0].delta.content
 
-        answered_query += f'\n------------------\n{query}'
-        logger.info(f"Answered query: {answered_query}")
-        return answered_query
+        rewrited_query += f'\n------------------\n{query}'
+        logger.info(f"Rewrited query: {rewrited_query}")
+        return rewrited_query
     except Exception as e:
         logger.error(f"Error rewriting query: {e}")
         raise
@@ -258,9 +258,9 @@ def process_request(config: dict, embedder: Embedder, llm_client: OpenAI, query:
     Processes the incoming query by retrieving relevant contexts and generating a response.
     """
     try:
-        answered_query = answer_query(llm_client, query, config)
+        rewrited_query = rewrite_query(llm_client, query, config)
         contexts: List[Context] = retrieve_contexts(
-            answered_query, embedder, config, es
+            rewrited_query, embedder, config, es
         ) # В ретривер отправляется переписанный запрос
         
         # Generate the response
