@@ -60,16 +60,16 @@ def ask_question(question: schemas.QuestionCreate):
         response_content = utils.process_request(config, local_embedder, llm_client, question.question, es_client)
         logger.info(f"LLM Response: {response_content}")
 
-        if isinstance(response_content, dict) and 'response' in response_content:
+        if isinstance(response_content, dict) and 'response' in response_content and 'context' in response_content:
             return schemas.QuestionResponse(
                 response=response_content['response'],
-                context=response_content['context']
+                contexts=response_content['context'],   
             )
         else:
             logger.error(f"Unexpected response format: {response_content}")
             return schemas.QuestionResponse(
                 response=unexpected_format_response,
-                context=unexpected_format_context,
+                contexts=unexpected_format_context,
                 code=400
             )
 
@@ -77,7 +77,7 @@ def ask_question(question: schemas.QuestionCreate):
         logger.exception(f"An error occurred while processing the question: {str(e)}")
         return schemas.QuestionResponse(
             response=server_error_response,
-            context=server_error_context,
+            contexts=server_error_context,
             code=500
         )
 

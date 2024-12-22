@@ -1,7 +1,11 @@
+import os
 import logging
+from dotenv import load_dotenv
 from datetime import datetime
 from pydoc import locate
 from typing import Dict, List, Union
+from gigachat import GigaChat
+from gigachat.models import Chat, Messages, MessagesRole
 from pathlib import Path
 
 from elasticsearch import Elasticsearch
@@ -24,9 +28,8 @@ def initialize_llm_client(config: Dict) -> OpenAI:
     Initializes and returns the LLM client using provided configuration.
     """
     try:
-        llm_client = OpenAI(
-            base_url=config["llm"]["base_url"], api_key=config["llm"]["api_key"]
-        )
+        load_dotenv('.env')
+        llm_client = GigaChat(credentials=os.environ.get("LLM_API_KEY"), verify_ssl_certs=False)
         logger.info("LLM client initialized successfully.")
         return llm_client
     except Exception as e:
@@ -188,16 +191,16 @@ def generate_response(llm_client, contexts, query, config):
     """
     try:
         prompt = build_prompt(contexts, query)
-        response = llm_client.chat.completions.create(
-            model=config["llm"]["model"],
-            messages=[
-                {"role": "system", "content": config["llm"]["system_prompt"]},
-                {"role": config["llm"]["role"], "content": prompt},
-            ],
-            temperature=config["llm"]["temperature"],
-            top_p=config["llm"]["top_p"],
-            max_tokens=config["llm"]["max_tokens"],
-            stream=True
+        response = llm_client.stream(
+            Chat(
+                messages=[
+                    Messages(role=MessagesRole.SYSTEM, content=config["llm"]["system_prompt"]),
+                    Messages(role=MessagesRole.USER, content=prompt),
+                ],
+                temperature=config["llm"]["temperature"],
+                top_p=config["llm"]["top_p"],
+                max_tokens=config["llm"]["max_tokens"],
+            )
         )
 
         generated_response = ""
@@ -228,16 +231,16 @@ def rewrite_query(llm_client, query, config):
     Answers user's query using LLM_rewriter
     """
     try:
-        response = llm_client.chat.completions.create(
-            model=config["llm_rewriter"]["model"],
-            messages=[
-                {"role": "system", "content": config["llm_rewriter"]["system_prompt"]},
-                {"role": config["llm_rewriter"]["role"], "content": f"Вопрос: {query}"},
-            ],
-            temperature=config["llm_rewriter"]["temperature"],
-            top_p=config["llm_rewriter"]["top_p"],
-            max_tokens=config["llm_rewriter"]["max_tokens"],
-            stream=True
+        response = llm_client.stream(
+            Chat(
+                messages=[
+                    Messages(role=MessagesRole.SYSTEM, content=config["llm_rewriter"]["system_prompt"]),
+                    Messages(role=MessagesRole.USER, content=f"Вопрос: {query}"),
+                ],
+                temperature=config["llm_rewriter"]["temperature"],
+                top_p=config["llm_rewriter"]["top_p"],
+                max_tokens=config["llm_rewriter"]["max_tokens"],
+            )
         )
 
         rewrited_query = ""
