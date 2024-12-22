@@ -10,6 +10,9 @@ services:
       POSTGRES_DB: ${DB_NAME:-hawkingragdb}
     ports:
       - "5434:5432"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./data:/docker-entrypoint-initdb.d
@@ -44,6 +47,9 @@ services:
       uvicorn interface.main:app --host 0.0.0.0 --port 8000 --reload"
     ports:
       - "8000:8000"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     depends_on:
       - db
     volumes:
@@ -55,6 +61,9 @@ services:
       streamlit run streamlit/app.py --server.port=8501 --server.address=0.0.0.0
     ports:
       - "8501:8501"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     depends_on:
       - interface
 
