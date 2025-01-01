@@ -8,8 +8,7 @@ from gigachat import GigaChat
 from gigachat.models import Chat, Messages, MessagesRole
 from pathlib import Path
 
-from elasticsearch import Elasticsearch
-from openai import OpenAI
+from opensearchpy import OpenSearch
 from tqdm import tqdm
 
 from interface.chunker import AbstractBaseChunker
@@ -23,7 +22,7 @@ from interface.schemas import EmbedderSettings, Context
 logger = logging.getLogger(__name__)
 
 
-def initialize_llm_client(config: Dict) -> OpenAI:
+def initialize_llm_client(config: Dict) -> GigaChat:
     """
     Initializes and returns the LLM client using provided configuration.
     """
@@ -50,7 +49,7 @@ def initialize_embedding_model(config: Dict) -> Embedder:
         raise
 
 
-def load_data(embedder: Embedder, es_client: Elasticsearch, config: Dict) -> None:
+def load_data(embedder: Embedder, os_client: OpenSearch, config: Dict) -> None:
     """
     Loads and processes data into the database by chunking text and vectorizing it.
     Only loads data into a table if the table is empty.
@@ -66,7 +65,7 @@ def load_data(embedder: Embedder, es_client: Elasticsearch, config: Dict) -> Non
             logger.info(
                 "No existing data found in ParagraphNpaDataset. Proceeding with data loading and processing for this table."
             )
-            load_and_process_text_documents(db, embedder, es_client, config)
+            load_and_process_text_documents(db, embedder, os_client, config)
 
         logger.info("Data loading process completed successfully.")
     except Exception as e:
@@ -77,7 +76,7 @@ def load_data(embedder: Embedder, es_client: Elasticsearch, config: Dict) -> Non
         db.close()
 
 
-def load_and_process_text_documents(db, embedder: Embedder, es: Elasticsearch, config: Dict) -> None:
+def load_and_process_text_documents(db, embedder: Embedder, os_client: OpenSearch, config: Dict) -> None:
     """
     Loads and processes text documents from a file, chunking and vectorizing the content.
     """
@@ -92,7 +91,7 @@ def load_and_process_text_documents(db, embedder: Embedder, es: Elasticsearch, c
 
         with file_path.open() as file:
             paragraphs: list[str] = [line for line in file if line.strip()][first_paragraph_num:]
-        create_index(index_name="chunks", es_client=es)
+        create_index(index_name="chunks", os_client=os_client)
         chapter: str = "nan"
 
         for paragraph in tqdm(paragraphs):
@@ -104,14 +103,14 @@ def load_and_process_text_documents(db, embedder: Embedder, es: Elasticsearch, c
                 db.commit()
 
                 chunks = chunker.chunk_text(paragraph)
-                store_chunks(db, es, doc, chunks, embedder)
+                store_chunks(db, os_client, doc, chunks, embedder)
         logger.info(f"Processed and stored chunks from {file_path}")
     except Exception as e:
         logger.error(f"Error processing text documents: {e}")
         raise
 
 
-def store_chunks(db, es: Elasticsearch, doc: ParagraphDataset, chunks: List[str], embedder: Embedder) -> None:
+def store_chunks(db, os_client: OpenSearch, doc: ParagraphDataset, chunks: List[str], embedder: Embedder) -> None:
     """
     Vectorizes and stores text chunks in the database.
     """
@@ -125,7 +124,7 @@ def store_chunks(db, es: Elasticsearch, doc: ParagraphDataset, chunks: List[str]
                                   vector=embedding)
             db.add(db_chunk)
         db.commit()
-        update_search(doc=doc, chunks=chunks, es_client=es)
+        update_search(doc=doc, chunks=chunks, os_client=os_client)
     except Exception as e:
         logger.error(f"Error storing chunks in the database: {e}")
         raise
@@ -154,15 +153,15 @@ def retrieve_semantic_search(db, query: str, embedder: Embedder, config: Dict) -
     return [Context(text=result.DataChunks.chunk_text, chapter=result.DataChunks.chapter, type='semantic') for result in results]
 
 
-def retrieve_fulltext_search(es_client: Elasticsearch, config: Dict, question: str) -> List[Context]:
+def retrieve_fulltext_search(os_client: OpenSearch, config: Dict, question: str) -> List[Context]:
     top_k = config["retrieval"]["top_k_fulltext"]
     query: Dict = {"query": {"match": {"text": {"query": question}}}, "size": top_k}
-    response: Dict = es_client.search(index=config["elastic_params"]["index_name"], body=query)
+    response: Dict = os_client.search(index=config["elastic_params"]["index_name"], body=query)
 
     return [Context(text=hit["_source"]['text'], chapter=hit["_source"]['chapter'], type='fulltext') for hit in response['hits']['hits']]
 
 
-def retrieve_contexts(query: str, embedder: Embedder, config: Dict, es: Elasticsearch) -> List[Context]:
+def retrieve_contexts(query: str, embedder: Embedder, config: Dict, os_client: OpenSearch) -> List[Context]:
     """
     Retrieves the most relevant contexts from DataChunks for a given query using vector search.
     """
@@ -172,7 +171,7 @@ def retrieve_contexts(query: str, embedder: Embedder, config: Dict, es: Elastics
         if config["retrieval"]["vector_search_enabled"]:
             top_chunks.extend(retrieve_semantic_search(db, query, embedder, config))
         if config["retrieval"]["fulltext_search_enabled"]:
-            top_chunks.extend(retrieve_fulltext_search(es, config, query))
+            top_chunks.extend(retrieve_fulltext_search(os_client, config, query))
 
         # Add deduplication
 
@@ -255,7 +254,7 @@ def rewrite_query(llm_client, query, config):
         logger.error(f"Error rewriting query: {e}")
         raise
 
-def process_request(config: dict, embedder: Embedder, llm_client: OpenAI, query: str, es: Elasticsearch) -> Union[
+def process_request(config: dict, embedder: Embedder, llm_client: GigaChat, query: str, os_client: OpenSearch) -> Union[
     dict, str]:
     """
     Processes the incoming query by retrieving relevant contexts and generating a response.
@@ -263,7 +262,7 @@ def process_request(config: dict, embedder: Embedder, llm_client: OpenAI, query:
     try:
         rewrited_query = rewrite_query(llm_client, query, config)
         contexts: List[Context] = retrieve_contexts(
-            rewrited_query, embedder, config, es
+            rewrited_query, embedder, config, os_client
         ) # В ретривер отправляется переписанный запрос
         
         # Generate the response

@@ -21,16 +21,16 @@ services:
                apt-get install -y postgresql-15-pgvector &&
                docker-entrypoint.sh postgres"
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.3
+  opensearch:
+    image: opensearchproject/opensearch:2.10.0
     environment:
       - discovery.type=single-node
-      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
     ports:
       - "9200:9200"
       - "9300:9300"
     volumes:
-      - es_data:/usr/share/elasticsearch/data
+      - os_data:/usr/share/opensearch/data
 
   interface:
     build: .
@@ -40,8 +40,8 @@ services:
         echo 'Waiting for Postgres...'
         sleep 2
       done &&
-      until curl -s http://elasticsearch:9200 > /dev/null; do
-        echo 'Waiting for Elasticsearch...';
+      until curl -s http://opensearch:9200 > /dev/null; do
+        echo 'Waiting for Opensearch...';
         sleep 2;
       done &&
       uvicorn interface.main:app --host 0.0.0.0 --port 8000 --reload"
@@ -69,4 +69,4 @@ services:
 
 volumes:
   postgres_data:
-  es_data:
+  os_data:
