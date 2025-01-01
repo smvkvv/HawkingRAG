@@ -57,7 +57,7 @@ def ask_question(question: schemas.QuestionCreate):
     logger.info(f"Received question: {question.question}")
 
     try:
-        response_content = utils.process_request(config, local_embedder, llm_client, question.question, es_client)
+        response_content = utils.process_request(config, local_embedder, llm_client, question.question, os_client)
         logger.info(f"LLM Response: {response_content}")
 
         if isinstance(response_content, dict) and 'response' in response_content and 'context' in response_content:
