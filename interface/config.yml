@@ -50,7 +50,7 @@ embedding_model:
   prefix_document: "passage: {}"
 
 elastic_params:
-  host: "elasticsearch"
+  host: "opensearch"
   port: 9200
   index_name: "chunks"
 
