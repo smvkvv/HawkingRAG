@@ -42,10 +42,11 @@
 
 Откройте файл interface/config.yaml и установите значения для параметров embedding_model и dimension в соответствии с конфигурацией, указанной в файле data/embeddings/embeddings_config.yaml.
 
-Создайте файл .env с "LLM_API_KEY = ...", содержащий API ключ GigaChat.
-
 Файл interface/config.yaml позволяет менять параметры эксперимента, не поглужаясь в кодовую базу. 
 
+Создайте файл .env с API ключом GigaChat:
+
+    LLM_API_KEY = <gigachat_API_key>
  
 3. Запустите проект:
 
