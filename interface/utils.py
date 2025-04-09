@@ -294,7 +294,7 @@ def process_request(config: dict, embedder: Embedder, llm_client: GigaChat, quer
     Processes the incoming query by retrieving relevant contexts and generating a response.
     """
     try:
-        canary_check = is_prompt_injection(query, llm_client)
+        canary_check = is_prompt_injection(query, llm_client, config)
         if (canary_check == False):
             return {"response": config["security"]["canary_check_error_message"], "context": list()}
         rewrited_query = rewrite_query(llm_client, query, config)
