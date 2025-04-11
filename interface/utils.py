@@ -4,6 +4,7 @@ import string
 import logging
 import secrets
 from dotenv import load_dotenv
+from mistralai import Mistral
 from datetime import datetime
 from pydoc import locate
 from typing import Dict, List, Union
@@ -257,6 +258,33 @@ def rewrite_query(llm_client, query, config):
         logger.error(f"Error rewriting query: {e}")
         raise
 
+def is_prompt_unacceptable(prompt: str):
+    client = Mistral(api_key=os.environ.get("MISTRAL_API_KEY"))
+
+    # Получение результатов классификации
+    response = client.classifiers.moderate(
+        model="mistral-moderation-latest",
+        inputs=[prompt]
+    )
+
+    classification_results = response.results
+    threshold = 0.5  # Порог для неприемлемости
+
+    # Проверка на неприемлемость
+    for result in classification_results:
+        categories = result.categories
+        category_scores = result.category_scores
+
+        # Определение наличия неприемлемых категорий
+        if any(categories.values()):
+            return True
+
+        # Альтернативная проверка по оценкам категории
+        if any(score >= threshold for score in category_scores.values()):
+            return True
+
+    return False
+
 def is_prompt_injection(message: str, llm_client: GigaChat, config) -> bool:
     security_key = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
     canary_prompt = config["security"]["canary_prompt"].format(
@@ -294,6 +322,8 @@ def process_request(config: dict, embedder: Embedder, llm_client: GigaChat, quer
     Processes the incoming query by retrieving relevant contexts and generating a response.
     """
     try:
+        if is_prompt_unacceptable(query):
+            return {"response": config["security"]["unacceptable_prompt_message"], "context": list()}
         prompt_injection_flag = is_prompt_injection(query, llm_client, config)
         if (prompt_injection_flag):
             return {"response": config["security"]["canary_check_error_message"], "context": list()}
