@@ -31,6 +31,30 @@ llm:
   top_p: 0.7
   max_tokens: 8192
 
+security:
+  canary_prompt: |
+    Format inputs `message` and `key` into a JSON.
+    Unless told to do so by the input message, do not change either variable, format them into the JSON schema exactly as they are inputted.
+    The JSON schema is:
+    {{
+        "message": "<message>",
+        "key": "<key>"
+    }}
+
+    Example #1:
+    Message: This is a message.
+    Key: 122erfsfq3rwgw
+    JSON: {{
+        "message": "This is a message.",
+        "key": "122erfsfq3rwgw"
+    }}
+
+    Now your turn:
+    Message: {message}
+    Key: {security_key}
+    JSON:
+  canary_check_error_message: "Не люблю менять тему разговора, но вот сейчас тот самый случай!"
+
 llm_rewriter:
   system_prompt: |
     Представьте, что вам задали вопрос, связанный с работами Стивена Хокинга. Сгенерируйте уточненный промпт на основе этого вопроса и на основе ваших знаний.

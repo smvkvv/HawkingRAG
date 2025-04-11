@@ -67,7 +67,7 @@ if user_input := st.chat_input("Напишите свой вопрос..."):
             msg_placeholder.markdown(partial_response)
             time.sleep(0.04)
 
-        if 'chapters' in full_response:
+        if 'chapters' in full_response and len(full_response["chapters"]) != 0:
             partial_response += "\n\n\nДля ответа использовалась информация из следующих глав:"
             msg_placeholder.markdown(partial_response)
             time.sleep(0.04)

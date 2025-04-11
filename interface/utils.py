@@ -1,5 +1,8 @@
 import os
+import json
+import string
 import logging
+import secrets
 from dotenv import load_dotenv
 from datetime import datetime
 from pydoc import locate
@@ -254,12 +257,46 @@ def rewrite_query(llm_client, query, config):
         logger.error(f"Error rewriting query: {e}")
         raise
 
+def is_prompt_injection(message: str, llm_client: GigaChat, config) -> bool:
+    security_key = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+    canary_prompt = config["security"]["canary_prompt"].format(
+        message=message.replace('"', r'\"'),
+        security_key=security_key,
+    )
+    try:
+        response = llm_client.chat(
+            Chat(
+                messages=[
+                    Messages(role=MessagesRole.USER, content=canary_prompt),
+                ],
+                temperature=0.0,  # Полная детерминированность
+                max_tokens=200
+            )
+        )
+        answer = response.choices[0].message.content.strip()
+        try:
+            returned_json = json.loads(answer)
+            # Проверяем точное соответствие
+            expected = {
+                "message": message,
+                "key": security_key
+            }
+            return returned_json != expected
+        except json.JSONDecodeError:
+            return True  # Не смогли распарсить - инъекция
+    except Exception as e:
+        print(f"Prompt injection check failed: {e}")
+        return True  # Fail secure
+
 def process_request(config: dict, embedder: Embedder, llm_client: GigaChat, query: str, os_client: OpenSearch) -> Union[
     dict, str]:
     """
     Processes the incoming query by retrieving relevant contexts and generating a response.
     """
     try:
+        prompt_injection_flag = is_prompt_injection(query, llm_client, config)
+        if (prompt_injection_flag):
+            return {"response": config["security"]["canary_check_error_message"], "context": list()}
         rewrited_query = rewrite_query(llm_client, query, config)
         contexts: List[Context] = retrieve_contexts(
             rewrited_query, embedder, config, os_client
